@@ -13,7 +13,7 @@
 
 Name:           goaccess
 Version:        1.3
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Real-time web log analyzer and interactive viewer
 License:        GPLv2+
 URL:            https://goaccess.io/
@@ -102,6 +102,10 @@ sed -i '/-pthread/d' configure.ac
 %{_mandir}/man1/%{name}.1*
 
 %changelog
+* Sat Aug 01 2020 Fedora Release Engineering <releng@fedoraproject.org> - 1.3-3
+- Second attempt - Rebuilt for
+  https://fedoraproject.org/wiki/Fedora_33_Mass_Rebuild
+
 * Mon Jul 27 2020 Fedora Release Engineering <releng@fedoraproject.org> - 1.3-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_33_Mass_Rebuild
 
