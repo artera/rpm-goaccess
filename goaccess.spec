@@ -31,6 +31,7 @@ BuildRequires:	gettext-devel
 %if %{with openssl}	
 BuildRequires:  openssl-devel	
 %endif
+BuildRequires: make
 
 %description
 GoAccess is a real-time web log analyzer and interactive viewer that runs in a
