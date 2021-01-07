@@ -1,5 +1,4 @@
 %bcond_without lto
-
 %bcond_without openssl
 
 %if %{with lto}
@@ -94,6 +93,9 @@ sed -i '/-pthread/d' configure.ac
 %{_mandir}/man1/%{name}.1*
 
 %changelog
+* Thu Jan  7 2021 Filipe Rosset <rosset.filipe@gmail.com> - 1.4.3-1
+- Update to 1.4.3 fixes rhbz#1837101
+
 * Sat Aug 01 2020 Fedora Release Engineering <releng@fedoraproject.org> - 1.3-3
 - Second attempt - Rebuilt for
   https://fedoraproject.org/wiki/Fedora_33_Mass_Rebuild
