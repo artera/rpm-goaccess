@@ -1,35 +1,27 @@
 %bcond_without lto
-		
-%bcond_without tcb_memhash
-	
-%bcond_with tcb_btree
-		
+
 %bcond_without openssl
-		
-%if %{with lto}	
+
+%if %{with lto}
 %global optflags        %{optflags} -flto
 %global build_ldflags   %{build_ldflags} -flto
 %endif
 
 Name:           goaccess
-Version:        1.3
-Release:        3%{?dist}
+Version:        1.4.3
+Release:        1%{?dist}
 Summary:        Real-time web log analyzer and interactive viewer
 License:        GPLv2+
 URL:            https://goaccess.io/
-Source0:        http://tar.goaccess.io/%{name}-%{version}.tar.gz
-Patch1:         patch.diff
+Source0:        https://tar.goaccess.io/%{name}-%{version}.tar.gz
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  gcc
 BuildRequires:  GeoIP-devel
 BuildRequires:  ncurses-devel
-BuildRequires:  tokyocabinet-devel
-BuildRequires:  zlib-devel
-BuildRequires:  bzip2-devel
-BuildRequires:	gettext-devel
-%if %{with openssl}	
-BuildRequires:  openssl-devel	
+BuildRequires:  gettext-devel
+%if %{with openssl}
+BuildRequires:  openssl-devel
 %endif
 BuildRequires: make
 
@@ -42,7 +34,7 @@ Features:
 GoAccess parses the specified web log file and outputs the data to terminal.
 
 * General statistics, bandwidth, etc.
-* Time taken to serve the request (useful to track pages that are slowing down.
+* Time taken to serve the request (useful to track pages that are slowing down
 your site).
 * Metrics for cumulative, average and slowest running requests.
 * Top visitors.
@@ -73,22 +65,20 @@ not limited to:
 * W3C format (IIS).
 
 %prep
-%autosetup -p1
+%autosetup
 # Prevent flags being overridden again and again.
 #sed -i 's|-pthread|$CFLAGS \0|' configure.ac
 sed -i '/-pthread/d' configure.ac
 
 %build
 # autoreconf -fiv
-# %configure --enable-debug --enable-geoip --enable-utf8 --enable-tcb=btree --with-getline
+# %%configure --enable-debug --enable-geoip --enable-utf8 --enable-tcb=btree --with-getline
 %configure \
-	--enable-debug \
-	--enable-geoip=legacy \
-	%{?with_tcb_memhash: --enable-tcb=memhash} \
-	%{?with_tcb_btree: --enable-tcb=btree} \
-	--enable-utf8 \
-	--with-getline \
-	 %{?with_openssl: --with-openssl}
+    --enable-debug \
+    --enable-geoip=legacy \
+    --enable-utf8 \
+    --with-getline \
+    %{?with_openssl: --with-openssl}
 %make_build
 
 %install
@@ -99,6 +89,7 @@ sed -i '/-pthread/d' configure.ac
 %license COPYING
 %config(noreplace) %{_sysconfdir}/%{name}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/%{name}/browsers.list
+%config(noreplace) %{_sysconfdir}/%{name}/podcast.list
 %{_bindir}/%{name}
 %{_mandir}/man1/%{name}.1*
 
