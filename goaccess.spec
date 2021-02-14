@@ -7,8 +7,8 @@
 %endif
 
 Name:           goaccess
-Version:        1.4.3
-Release:        2%{?dist}
+Version:        1.4.5
+Release:        1%{?dist}
 Summary:        Real-time web log analyzer and interactive viewer
 License:        GPLv2+
 URL:            https://goaccess.io/
@@ -93,6 +93,9 @@ sed -i '/-pthread/d' configure.ac
 %{_mandir}/man1/%{name}.1*
 
 %changelog
+* Sun Feb 14 2021 Eduardo Echeverria <echevemaster@gmail.com> - 1.4.5-1
+- Update to 1.4.5 fixes rhbz#1920124
+
 * Tue Jan 26 2021 Fedora Release Engineering <releng@fedoraproject.org> - 1.4.3-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_34_Mass_Rebuild
 
