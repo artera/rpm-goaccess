@@ -1,0 +1,87 @@
+From 295dd50295fb8fc829f64e96a4c71e9b4b1e6886 Mon Sep 17 00:00:00 2001
+From: Massimiliano Torromeo <massimiliano.torromeo@gmail.com>
+Date: Wed, 17 Mar 2021 00:29:06 +0100
+Subject: [PATCH] Allow starting websocket server without outputting html to a
+ file
+
+---
+ src/goaccess.c | 23 ++++++++++-------------
+ src/output.c   |  9 +++++++++
+ 2 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/src/goaccess.c b/src/goaccess.c
+index e8d37956..bfd3b5c6 100644
+--- a/src/goaccess.c
++++ b/src/goaccess.c
+@@ -873,10 +873,13 @@ process_html (const char *filename) {
+     .tv_nsec = 0,
+   };
+ 
+-  /* render report */
+-  pthread_mutex_lock (&gdns_thread.mutex);
+-  output_html (holder, filename);
+-  pthread_mutex_unlock (&gdns_thread.mutex);
++  if (filename) {
++    /* render report */
++    pthread_mutex_lock (&gdns_thread.mutex);
++    output_html (holder, filename);
++    pthread_mutex_unlock (&gdns_thread.mutex);
++  }
++
+   /* not real time? */
+   if (!conf.real_time_html)
+     return;
+@@ -1445,14 +1448,8 @@ spawn_ws (void) {
+ 
+ static void
+ set_standard_output (void) {
+-  int html = 0;
+-
+-  /* HTML */
+-  if (find_output_type (NULL, "html", 0) == 0 || conf.output_format_idx == 0)
+-    html = 1;
+-
+   /* Spawn WebSocket server threads */
+-  if (html && conf.real_time_html) {
++  if (conf.real_time_html) {
+     if (spawn_ws ())
+       return;
+   }
+@@ -1514,7 +1511,7 @@ main (int argc, char **argv) {
+   if (conf.process_and_exit) {
+   }
+   /* set stdout */
+-  else if (conf.output_stdout) {
++  else if (conf.output_stdout || conf.real_time_html) {
+     set_standard_output ();
+   }
+   /* set curses */
+@@ -1553,7 +1550,7 @@ main (int argc, char **argv) {
+   if (conf.process_and_exit) {
+   }
+   /* stdout */
+-  else if (conf.output_stdout) {
++  else if (conf.output_stdout || conf.real_time_html) {
+     standard_output ();
+   }
+   /* curses */
+diff --git a/src/output.c b/src/output.c
+index ec8b9a09..f96c8b9b 100644
+--- a/src/output.c
++++ b/src/output.c
+@@ -501,6 +501,15 @@ print_conn_def (FILE * fp) {
+   if (!conf.real_time_html)
+     return;
+ 
++  int html = 0;
++
++  /* HTML */
++  if (find_output_type (NULL, "html", 0) == 0)
++    html = 1;
++
++  if (!html)
++    return;
++
+   fprintf (fp, "<script type='text/javascript'>");
+   fprintf (fp, "var connection = ");
+ 

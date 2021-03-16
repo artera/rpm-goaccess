@@ -1,0 +1,203 @@
+From dadffff3e23df40131cb9edbf36cee2b58611b2a Mon Sep 17 00:00:00 2001
+From: Massimiliano Torromeo <massimiliano.torromeo@gmail.com>
+Date: Wed, 17 Mar 2021 00:05:48 +0100
+Subject: [PATCH] Implemented websocket server bind on unix-domain sockets
+ (Implements #1662)
+
+---
+ src/gwsocket.c  |  2 ++
+ src/options.c   |  6 ++++
+ src/settings.h  |  1 +
+ src/websocket.c | 74 ++++++++++++++++++++++++++++++++++---------------
+ src/websocket.h |  2 ++
+ 5 files changed, 62 insertions(+), 23 deletions(-)
+
+diff --git a/src/gwsocket.c b/src/gwsocket.c
+index 8b308ba1..b6488680 100644
+--- a/src/gwsocket.c
++++ b/src/gwsocket.c
+@@ -343,6 +343,8 @@ set_ws_opts (void) {
+   ws_set_config_strict (1);
+   if (conf.addr)
+     ws_set_config_host (conf.addr);
++  if (conf.unix_socket)
++    ws_set_config_unix_socket (conf.unix_socket);
+   if (conf.fifo_in)
+     ws_set_config_pipein (conf.fifo_in);
+   if (conf.fifo_out)
+diff --git a/src/options.c b/src/options.c
+index cea991f7..4c57f8bb 100644
+--- a/src/options.c
++++ b/src/options.c
+@@ -83,6 +83,7 @@ struct option long_opts[] = {
+   {"444-as-404"           , no_argument       , 0 , 0  }  ,
+   {"4xx-to-unique-count"  , no_argument       , 0 , 0  }  ,
+   {"addr"                 , required_argument , 0 , 0  }  ,
++  {"unix-socket"          , required_argument , 0 , 0  }  ,
+   {"all-static-files"     , no_argument       , 0 , 0  }  ,
+   {"anonymize-ip"         , no_argument       , 0 , 0  }  ,
+   {"color"                , required_argument , 0 , 0  }  ,
+@@ -193,6 +194,7 @@ cmd_help (void)
+   /* Server Options */
+   CYN "SERVER OPTIONS\n\n" RESET
+   "  --addr=<addr>                   - Specify IP address to bind server to.\n"
++  "  --unix-socket=<addr>            - Specify UNIX-domain socket address to bind server to.\n"
+   "  --daemonize                     - Run as daemon (if --real-time-html enabled).\n"
+   "  --fifo-in=<path>                - Path to read named pipe (FIFO).\n"
+   "  --fifo-out=<path>               - Path to write named pipe (FIFO).\n"
+@@ -398,6 +400,10 @@ parse_long_opt (const char *name, const char *oarg) {
+   if (!strcmp ("addr", name))
+     conf.addr = oarg;
+ 
++  /* unix socket to use */
++  if (!strcmp ("unix-socket", name))
++    conf.unix_socket = oarg;
++
+   /* FIFO in (read) */
+   if (!strcmp ("fifo-in", name))
+     conf.fifo_in = oarg;
+diff --git a/src/settings.h b/src/settings.h
+index 19c793a1..456825cc 100644
+--- a/src/settings.h
++++ b/src/settings.h
+@@ -136,6 +136,7 @@ typedef struct GConf_
+   const char *sslcert;              /* TLS/SSL path to certificate */
+   const char *sslkey;               /* TLS/SSL path to private key */
+   const char *ws_url;               /* WebSocket URL */
++  const char *unix_socket;          /* unix socket to bind to */
+ 
+   /* User flags */
+   int all_static_files;             /* parse all static files */
+diff --git a/src/websocket.c b/src/websocket.c
+index 8c3a036a..11534398 100644
+--- a/src/websocket.c
++++ b/src/websocket.c
+@@ -40,6 +40,7 @@
+ #include <stdarg.h>
+ #include <stddef.h>
+ #include <sys/socket.h>
++#include <sys/un.h>
+ #include <sys/stat.h>
+ #include <sys/time.h>
+ #include <sys/ioctl.h>
+@@ -2688,29 +2689,45 @@ handle_fifo (WSServer * server) {
+  * connections on a socket */
+ static void
+ ws_socket (int *listener) {
+-  int ov = 1;
+-  struct addrinfo hints, *ai;
+-
+-  /* get a socket and bind it */
+-  memset (&hints, 0, sizeof hints);
+-  hints.ai_family = AF_UNSPEC;
+-  hints.ai_socktype = SOCK_STREAM;
+-  /*hints.ai_flags = AI_PASSIVE; */
+-  if (getaddrinfo (wsconfig.host, wsconfig.port, &hints, &ai) != 0)
+-    FATAL ("Unable to set server: %s.", gai_strerror (errno));
+-
+-  /* Create a TCP socket.  */
+-  if ((*listener = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol)) == -1)
+-    FATAL ("Unable to open socket: %s.", strerror (errno));
+-
+-  /* Options */
+-  if (setsockopt (*listener, SOL_SOCKET, SO_REUSEADDR, &ov, sizeof (ov)) == -1)
+-    FATAL ("Unable to set setsockopt: %s.", strerror (errno));
+-
+-  /* Bind the socket to the address. */
+-  if (bind (*listener, ai->ai_addr, ai->ai_addrlen) != 0)
+-    FATAL ("Unable to set bind: %s.", strerror (errno));
+-  freeaddrinfo (ai);
++  if (wsconfig.unix_socket) {
++    struct sockaddr_un servaddr;
++
++    /* Create a TCP socket.  */
++    if ((*listener = socket (AF_UNIX, SOCK_STREAM, 0)) == -1)
++      FATAL ("Unable to open socket: %s.", strerror (errno));
++
++    memset(&servaddr, 0, sizeof (servaddr));
++    servaddr.sun_family = AF_UNIX;
++    strncpy(servaddr.sun_path, wsconfig.unix_socket, sizeof (servaddr.sun_path) - 1);
++
++    /* Bind the socket to the address. */
++    if (bind (*listener, (struct sockaddr *) &servaddr, sizeof (servaddr)) != 0)
++      FATAL ("Unable to set bind: %s.", strerror (errno));
++  } else {
++    int ov = 1;
++    struct addrinfo hints, *ai;
++
++    /* get a socket and bind it */
++    memset (&hints, 0, sizeof hints);
++    hints.ai_family = AF_UNSPEC;
++    hints.ai_socktype = SOCK_STREAM;
++    /*hints.ai_flags = AI_PASSIVE; */
++    if (getaddrinfo (wsconfig.host, wsconfig.port, &hints, &ai) != 0)
++      FATAL ("Unable to set server: %s.", gai_strerror (errno));
++
++    /* Create a TCP socket.  */
++    if ((*listener = socket (ai->ai_family, ai->ai_socktype, ai->ai_protocol)) == -1)
++      FATAL ("Unable to open socket: %s.", strerror (errno));
++
++    /* Options */
++    if (setsockopt (*listener, SOL_SOCKET, SO_REUSEADDR, &ov, sizeof (ov)) == -1)
++      FATAL ("Unable to set setsockopt: %s.", strerror (errno));
++
++    /* Bind the socket to the address. */
++    if (bind (*listener, ai->ai_addr, ai->ai_addrlen) != 0)
++      FATAL ("Unable to set bind: %s.", strerror (errno));
++    freeaddrinfo (ai);
++  }
+ 
+   /* Tell the socket to accept connections. */
+   if (listen (*listener, SOMAXCONN) == -1)
+@@ -2807,6 +2824,10 @@ ws_start (WSServer * server) {
+   ws_close (listener);
+   if (server->self_pipe[0] != -1)
+     unset_pollfd (server->self_pipe[0]);
++
++  if (wsconfig.unix_socket) {
++    unlink(wsconfig.unix_socket);
++  }
+ }
+ 
+ /* Set the origin so the server can force connections to have the
+@@ -2861,6 +2882,12 @@ ws_set_config_host (const char *host) {
+   wsconfig.host = host;
+ }
+ 
++/* Set the server unix socket bind address. */
++void
++ws_set_config_unix_socket (const char *unix_socket) {
++  wsconfig.unix_socket = unix_socket;
++}
++
+ /* Set the server port bind address. */
+ void
+ ws_set_config_port (const char *port) {
+@@ -2889,6 +2916,7 @@ ws_init (const char *host, const char *port, void (*initopts) (void)) {
+ 
+   wsconfig.accesslog = NULL;
+   wsconfig.host = host;
++  wsconfig.unix_socket = NULL;
+   wsconfig.max_frm_size = WS_MAX_FRM_SZ;
+   wsconfig.origin = NULL;
+   wsconfig.pipein = NULL;
+diff --git a/src/websocket.h b/src/websocket.h
+index e31a93bf..d74e4561 100644
+--- a/src/websocket.h
++++ b/src/websocket.h
+@@ -261,6 +261,7 @@ typedef struct WSConfig_ {
+   const char *port;
+   const char *sslcert;
+   const char *sslkey;
++  const char *unix_socket;
+   int echomode;
+   int strict;
+   int max_frm_size;
+@@ -303,6 +304,7 @@ void ws_set_config_accesslog (const char *accesslog);
+ void ws_set_config_echomode (int echomode);
+ void ws_set_config_frame_size (int max_frm_size);
+ void ws_set_config_host (const char *host);
++void ws_set_config_unix_socket (const char *unix_socket);
+ void ws_set_config_origin (const char *origin);
+ void ws_set_config_pipein (const char *pipein);
+ void ws_set_config_pipeout (const char *pipeout);

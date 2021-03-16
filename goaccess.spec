@@ -8,11 +8,13 @@
 
 Name:           goaccess
 Version:        1.4.6
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Real-time web log analyzer and interactive viewer
 License:        GPLv2+
 URL:            https://goaccess.io/
 Source0:        https://tar.goaccess.io/%{name}-%{version}.tar.gz
+Patch0:         unix-domain.patch
+Patch1:         no-html.patch
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  gcc
@@ -64,7 +66,8 @@ not limited to:
 * W3C format (IIS).
 
 %prep
-%autosetup
+%autosetup -p1
+
 # Prevent flags being overridden again and again.
 #sed -i 's|-pthread|$CFLAGS \0|' configure.ac
 sed -i '/-pthread/d' configure.ac
