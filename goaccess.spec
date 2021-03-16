@@ -51,7 +51,7 @@ your site).
 * Tailor GoAccess to suit your own color taste/schemes.
 * Support for large datasets + data persistence.
 * Support for IPv6.
-* Output statistics to HTML. 
+* Output statistics to HTML.
 and more...
 
 GoAccess allows any custom log format string. Predefined options include, but
@@ -70,7 +70,7 @@ not limited to:
 sed -i '/-pthread/d' configure.ac
 
 %build
-# autoreconf -fiv
+autoreconf -fiv
 # %%configure --enable-debug --enable-geoip --enable-utf8 --enable-tcb=btree --with-getline
 %configure \
     --enable-debug \
@@ -94,7 +94,7 @@ sed -i '/-pthread/d' configure.ac
 
 %changelog
 * Sun Mar 14 2021 Eduardo Echeverria <echevemaster@gmail.com> - 1.4.6-1
-- Update to 1.4.6 
+- Update to 1.4.6
 
 * Sun Feb 14 2021 Eduardo Echeverria <echevemaster@gmail.com> - 1.4.5-1
 - Update to 1.4.5 fixes rhbz#1920124
@@ -149,7 +149,7 @@ sed -i '/-pthread/d' configure.ac
 - Fix typo on the summary
 
 * Sat Oct 08 2016 Eduardo Echeverria <echevemaster@gmail.com> - 1.0.2-1
-- Update to 1.0.2 
+- Update to 1.0.2
 
 * Fri Apr 22 2016 Christopher Meng <rpm@cicku.me> - 0.9.8-1
 - Update to 0.9.8
